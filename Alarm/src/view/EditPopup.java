@@ -1,3 +1,7 @@
+package view;
+
+import model.Alarm;
+
 /**
  * Created by hyunuk71@gmail.com on 23/08/2018
  * Github : http://github.com/hyunuk71

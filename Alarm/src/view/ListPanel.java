@@ -1,8 +1,9 @@
+package view;
+
 import javax.swing.*;
 import javax.swing.border.EtchedBorder;
 import javax.swing.border.TitledBorder;
 import java.awt.*;
-import java.util.ArrayList;
 
 /**
  * Created by hyunuk71@gmail.com on 26/08/2018
@@ -36,25 +37,6 @@ public class ListPanel extends JPanel {
 		alarmList.setModel(alarmListModel);
 	}
 
-	protected void updateAlarmListModel(ArrayList<Alarm> alarmArrayList) {
-		alarmListModel.clear();
-		String alarmStr = "";
-
-		for (int i = 0; i < alarmArrayList.size(); i++) {
-			String label = alarmArrayList.get(i).getLabel();
-			int hour = alarmArrayList.get(i).getHour();
-			int minute = alarmArrayList.get(i).getMinute();
-			String sound = alarmArrayList.get(i).getSound();
-			String repeat = alarmArrayList.get(i).isRepeat() ? ", Repeat" : ", Not Repeat";
-			String set = alarmArrayList.get(i).isSet() ? ", Set" : ", Not Set";
-
-			alarmStr = label + " (" + String.format("%02d", hour) + ":" + String.format("%02d", minute) + "), Sound: "
-					+ sound + repeat + set;
-			alarmListModel.addElement(alarmStr);
-		}
-
-		alarmList.setModel(alarmListModel);
-	}
 
 
 }
