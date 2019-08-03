@@ -1,23 +1,34 @@
 package view;
 
-import view.MainFrame;
+import model.Alarm;
+import viewModel.AppManager;
+
+import java.util.Objects;
 
 /**
  * Created by hyunuk71@gmail.com on 23/08/2018
  * Github : http://github.com/hyunuk71
  */
-public class AddPopup extends PopupPanel {
-	Alarm alarm;
-	MainFrame mainFrame;
+class AddPopup extends Popup {
+	private AppManager appManager;
 
-	public AddPopup(MainFrame mainFrame) {
-		this.mainFrame = mainFrame;
+	AddPopup(AppManager appManager) {
+		this.appManager = appManager;
+
 		leftBtn.setText("Add");
-		rightBtn.setText("Cancel");
 		addPopupInit();
+		leftBtn.addActionListener(e -> {
+			addAlarm();
+			addPopupInit();
+			this.dispose();
+		});
+		cancelBtn.addActionListener(e -> {
+			addPopupInit();
+			this.dispose();
+		});
 	}
 
-	public void addPopupInit() {
+	private void addPopupInit() {
 		labelText.setText("");
 		hoursCombo.setSelectedIndex(0);
 		minutesCombo.setSelectedIndex(0);
@@ -26,18 +37,14 @@ public class AddPopup extends PopupPanel {
 		on.setSelected(true);
 	}
 
-	public void addAlarm() {
+	private void addAlarm() {
 		String label = labelText.getText();
-		int hour = Integer.parseInt(hoursCombo.getSelectedItem().toString());
-		int minute = Integer.parseInt(minutesCombo.getSelectedItem().toString());
+		int hour = Integer.parseInt(Objects.requireNonNull(hoursCombo.getSelectedItem()).toString());
+		int minute = Integer.parseInt(Objects.requireNonNull(minutesCombo.getSelectedItem()).toString());
 		String sound = soundsList.getSelectedValue();
 		boolean isRepeat = repeatChecker.isSelected();
-		boolean isSet = on.isSelected() ? true : false;
+		boolean isSet = on.isSelected();
 
-		addPopupInit();
-
-		alarm = new Alarm(label, hour, minute, sound, isRepeat, isSet);
-		if (isSet == true) alarm.start();
-		mainFrame.alarmArrayList.add(alarm);
+		appManager.setAlarm(-1, new Alarm(label, hour, minute, sound, isRepeat, isSet));
 	}
 }

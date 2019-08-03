@@ -1,39 +1,38 @@
 package view;
 
 import helper.ComponentAttacher;
-import helper.ResolutionAdjuster;
-import model.Alarm;
+import helper.Observer;
+import helper.TimeAndDateDisplayer;
 import viewModel.AppManager;
 
 import javax.swing.*;
 import javax.swing.border.EtchedBorder;
 import javax.swing.border.TitledBorder;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.io.*;
-import java.text.DecimalFormat;
-import java.util.ArrayList;
-import java.util.Scanner;
 
 /**
  * Created by hyunuk71@gmail.com on 20/08/2018
  * Github : http://github.com/hyunuk71
  */
-public class MainFrame extends JFrame {
+public class MainFrame extends JFrame implements Observer {
 	private final Dimension MAIN_FRAME_DIM = new Dimension(400, 130);
-	private final Rectangle CLOCK_PANEL_RECT = new Rectangle(389, 93, 0, 0);
-	private final Rectangle LIST_PANEL_RECT = new Rectangle(0, 105, 389, 270);
+	private final Rectangle CLOCK_PANEL_RECT = new Rectangle(0, 0, 400, 93);
+	private final Dimension CLOCK_PANEL_DIM = new Dimension(400, 93);
+	private final Rectangle LIST_PANEL_RECT = new Rectangle(0, 105, 400, 270);
+	private final Dimension LIST_PANEL_DIM = new Dimension(400, 270);
 	private final Rectangle BUTTON_PANEL_RECT = new Rectangle(0, 380, 400, 100);
+	private final Dimension BUTTON_PANEL_DIM = new Dimension(400, 100);
+	private final Point CLOCK_PANEL_POINT = new Point(0, 0);
+	private final Point LIST_PANEL_POINT = new Point(0, 105);
+	private final Point BUTTON_PANEL_POINT = new Point(0, 380);
 
 	private AppManager appManager;
 
-	private JDialog addPopup;
-	private JDialog editPopup;
-	private AddPopup addPopupPanel = new AddPopup(this);
-	private EditPopup editPopupPanel = new EditPopup();
-	private int editIndex;
-	private ArrayList<Alarm> alarmArrayList = new ArrayList<>();
-	private JList<String> alarmList;
+	private AddPopup addPopup;
+	private EditPopup editPopup;
+	private int clickedIndex;
+	private JLabel timeLabel, dateLabel;
+	private JCheckBox hourChk;
 
 	public static void main(String[] args) {
 		MainFrame mainFrame = new MainFrame();
@@ -42,41 +41,39 @@ public class MainFrame extends JFrame {
 
 	private void start() {
 		appManager = new AppManager();
+		appManager.addObserver(this);
 		initView();
+		addPopup = new AddPopup(appManager);
+		editPopup = new EditPopup(appManager);
 		appManager.start();
 	}
 
 	private void initView() {
-		this.pack();
+		setLayout(null);
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setTitle("Alarm Clock");
-		setLocation(ResolutionAdjuster.adjustWidth(100), ResolutionAdjuster.adjustHeight(100));
-		setPreferredSize(MAIN_FRAME_DIM);
+		setLocation(100, 100);
 		setAlwaysOnTop(true);
+		setPreferredSize(MAIN_FRAME_DIM);
+		this.pack();
+		ComponentAttacher.attach(this, clockPanel(), CLOCK_PANEL_POINT, CLOCK_PANEL_DIM);
+		ComponentAttacher.attach(this, listPanel(), LIST_PANEL_POINT, LIST_PANEL_DIM);
+		ComponentAttacher.attach(this, buttonPanel(), BUTTON_PANEL_POINT, BUTTON_PANEL_DIM);
 		setVisible(true);
-		setLayout(null);
 
-		ComponentAttacher.attach(this, clockPanel(), CLOCK_PANEL_RECT);
-		ComponentAttacher.attach(this, listPanel(), LIST_PANEL_RECT);
-		ComponentAttacher.attach(this, buttonPanel(), BUTTON_PANEL_RECT);
+//		ComponentAttacher.attach(this, buttonPanel(), BUTTON_PANEL_RECT);
+//		ComponentAttacher.attach(this, clockPanel(), CLOCK_PANEL_RECT);
+//		ComponentAttacher.attach(this, listPanel(), LIST_PANEL_RECT);
 
-
-		addPopup = new JDialog(this, "Add Alarm", true);
-		addPopup.setLocation(this.getX()+50, this.getY()+50);
-		addPopup.add(addPopupPanel);
-		editPopup = new JDialog(this, "Edit Alarm", true);
-		editPopup.setLocation(this.getX()+50, this.getY()+50);
-		editPopup.add(editPopupPanel);
 	}
 
 	private JPanel clockPanel() {
 		JPanel retPanel = new JPanel(null);
 
-		JLabel timeLabel = new JLabel();
-		JLabel dateLabel = new JLabel();
-		JCheckBox hourChk = new JCheckBox("24hr");
+		timeLabel = new JLabel();
+		dateLabel = new JLabel();
+		hourChk = new JCheckBox("24hr");
 		JButton alarmBtn = new JButton("Alarm");
-		DecimalFormat df = new DecimalFormat("00");
 		retPanel.setBorder(new TitledBorder(new EtchedBorder(), "Clock"));
 		timeLabel.setFont(new Font("Tahoma",Font.BOLD, 30));
 		dateLabel.setFont(new Font("Tahoma",Font.ITALIC, 20));
@@ -100,11 +97,11 @@ public class MainFrame extends JFrame {
 
 	private JPanel listPanel() {
 		JPanel retPanel = new JPanel(null);
-		DefaultListModel<String> alarmListModel = new DefaultListModel<>();
+		DefaultListModel<String> alarmListModel = appManager.getAlarmListModel();
 		JScrollPane scr;
 
 		alarmListModel.addElement("No Alarms");
-		alarmList = new JList<>(alarmListModel);
+		JList<String> alarmList = appManager.getAlarmList();
 		alarmList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 		alarmList.setBorder(BorderFactory.createLineBorder(Color.BLACK, 1));
 
@@ -132,70 +129,39 @@ public class MainFrame extends JFrame {
 
 		addBtn.addActionListener(e -> openPopup(addPopup));
 		editBtn.addActionListener(e -> {
-			editIndex = alarmList.getSelectedIndex();
-			if (editIndex != -1) {
-				Alarm editingAlarm = alarmArrayList.get(editIndex );
-				editPopupPanel.setEditPopup(editingAlarm);
+			clickedIndex = appManager.getSelectedIndex();
+			if (clickedIndex != -1) {
+				appManager.setEditIndex(clickedIndex);
+				editPopup.initEditPopup(appManager.getEditingAlarm(clickedIndex));
 				openPopup(editPopup);
 			}
 		});
-		deleteBtn.addActionListener(e -> deleteAlarm());
-		loadBtn.addActionListener(e -> loadFunc());
-		saveBtn.addActionListener(e -> saveFunc());
+		deleteBtn.addActionListener(e -> {
+			clickedIndex = appManager.getSelectedIndex();
+			if (clickedIndex != -1) {
+				appManager.deleteAlarm(clickedIndex);
+			}
+
+		});
+		loadBtn.addActionListener(e -> appManager.loadFunc());
+		saveBtn.addActionListener(e -> appManager.saveFunc(this));
 
 		return retPanel;
 	}
 
-
-	public void actionPerformed(ActionEvent e) {
-		if (addPopupPanel.leftBtn == e.getSource()) { // Add - confirm adding
-			addPopupPanel.addAlarm();
-			updateAlarmListModel(alarmArrayList);
-			addPopup.dispose();
-		}
-		if (addPopupPanel.rightBtn == e.getSource()) { // Add - cancel
-			addPopupPanel.addPopupInit();
-			addPopup.dispose();
-		}
-		if (editPopupPanel.leftBtn == e.getSource()) { // Edit - confirm editing
-			alarmArrayList.get(editIndex).interrupt();
-			alarmArrayList.set(editIndex, editPopupPanel.editAlarm());
-			editPopupPanel.editAlarm().start();
-			updateAlarmListModel(alarmArrayList);
-			editPopup.dispose();
-		}
-		if (editPopupPanel.rightBtn == e.getSource()) { // Edit - cancel
-			editPopup.dispose();
-		}
-	}
-
-
-	public void buttonClickEvent() {
-
-		addPopupPanel.leftBtn.addActionListener(this);
-		addPopupPanel.rightBtn.addActionListener(this);
-		editPopupPanel.leftBtn.addActionListener(this);
-		editPopupPanel.rightBtn.addActionListener(this);
-	}
-
 	private void openPopup(JDialog popup){
 		popup.setSize(300, 300);
+		popup.setBounds(this.getX()+50, this.getY()+50, 300, 300);
 		popup.setVisible(true);
 	}
 
-	private void deleteAlarm() {
-		int index = alarmList.getSelectedIndex();
-		if (index != -1) {
-			alarmArrayList.get(index).interrupt();
-			alarmArrayList.remove(index);
-			updateAlarmListModel(alarmArrayList);
-		} else {
-			System.out.println("No item is selected!");
-		}
-	}
-
-
 	private boolean isAlarmOpen() {
 		return this.getHeight() == 130;
+	}
+
+	@Override
+	public void update() {
+		timeLabel.setText(TimeAndDateDisplayer.clockDisplay(hourChk.isSelected()));
+		dateLabel.setText(TimeAndDateDisplayer.dateDisplay());
 	}
 }

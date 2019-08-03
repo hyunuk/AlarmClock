@@ -1,22 +1,32 @@
 package viewModel;
 
+import helper.Observable;
+import helper.Observer;
 import model.Alarm;
 
 import javax.swing.*;
-
+import java.awt.*;
 import java.io.*;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.GregorianCalendar;
-import java.util.Scanner;
+import java.util.*;
+import java.util.List;
 
-public class AppManager implements Runnable {
-	private final String[] DAY_OF_WEEK = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"};
-	private final String[] MONTH = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
+public class AppManager implements Runnable, Observable {
+	private List<Alarm> alarmArrayList;
+	private List<Observer> observers;
+	private JList<String> alarmList;
+	private	DefaultListModel<String> alarmListModel;
+
+	private int editIndex;
 
 	private Thread thread;
 	private boolean is24 = false;
 
+	public AppManager() {
+		observers = new ArrayList<>();
+		alarmArrayList = new ArrayList<>();
+		alarmListModel = new DefaultListModel<>();
+		alarmList = new JList<>(alarmListModel);
+	}
 
 	public void start() {
 		if (thread == null) {
@@ -25,49 +35,20 @@ public class AppManager implements Runnable {
 		}
 	}
 
-	private String clockDisplay(boolean is24) {
-		GregorianCalendar cal = new GregorianCalendar();
-		String hour24 = cal.get(Calendar.AM_PM) == 0 ? df.format(cal.get(Calendar.HOUR)) : df.format(cal.get(Calendar.HOUR) + 12);
-		String hour12 = df.format(cal.get(Calendar.HOUR)).equals("0") ? "12" : df.format(cal.get(Calendar.HOUR));
-		String minute = df.format(cal.get(Calendar.MINUTE));
-		String second = df.format(cal.get(Calendar.SECOND));
-		String amPm = cal.get(Calendar.AM_PM) == 0 ? "AM" : "PM";
-		String currentTime24 = hour24 + " : " + minute + " : " + second + " ";
-		String currentTime12 = hour12 + " : " + minute + " : " + second + " " + amPm;
-		String currentTime;
-		currentTime = is24 ? currentTime24 : currentTime12;
-
-		return currentTime;
-	}
-
-	private String dateDisplay() {
-		GregorianCalendar cal = new GregorianCalendar();
-
-		int year = cal.get(Calendar.YEAR);
-		String dayOfWeek = DAY_OF_WEEK[cal.get(Calendar.DAY_OF_WEEK)];
-		String month = MONTH[cal.get(Calendar.MONTH)];
-
-		String date = df.format(cal.get(Calendar.DATE));
-		String currentDate = dayOfWeek + " - " + month + " " + date + ". " + year;
-		dateLabel.setText(currentDate);
-		return currentDate;
-	}
-
 	public void setIs24(boolean is24) {
 		this.is24 = is24;
 	}
 
-	protected void updateAlarmListModel(ArrayList<Alarm> alarmArrayList) {
-		alarmListModel.clear();
-		String alarmStr = "";
+	public void updateAlarmListModel() {
+		String alarmStr;
 
-		for (int i = 0; i < alarmArrayList.size(); i++) {
-			String label = alarmArrayList.get(i).getLabel();
-			int hour = alarmArrayList.get(i).getHour();
-			int minute = alarmArrayList.get(i).getMinute();
-			String sound = alarmArrayList.get(i).getSound();
-			String repeat = alarmArrayList.get(i).isRepeat() ? ", Repeat" : ", Not Repeat";
-			String set = alarmArrayList.get(i).isSet() ? ", Set" : ", Not Set";
+		for (Alarm alarm : alarmArrayList) {
+			String label = alarm.getLabel();
+			int hour = alarm.getHour();
+			int minute = alarm.getMinute();
+			String sound = alarm.getSound();
+			String repeat = alarm.isRepeat() ? ", Repeat" : ", Not Repeat";
+			String set = alarm.isSet() ? ", Set" : ", Not Set";
 
 			alarmStr = label + " (" + String.format("%02d", hour) + ":" + String.format("%02d", minute) + "), Sound: "
 				+ sound + repeat + set;
@@ -77,14 +58,9 @@ public class AppManager implements Runnable {
 		alarmList.setModel(alarmListModel);
 	}
 
-	public void clockThread() {
-		timeLabel.setText(clockDisplay(is24));
-		dateDisplay();
-	}
-
-	private void loadFunc() {
-		for (int i = 0; i < alarmArrayList.size(); i++) {
-			alarmArrayList.get(i).interrupt();
+	public void loadFunc() {
+		for (Alarm value : alarmArrayList) {
+			value.interrupt();
 		}
 		alarmArrayList.clear();
 
@@ -96,14 +72,14 @@ public class AppManager implements Runnable {
 			try {
 				s = new Scanner(new FileReader(f));
 
-				String data[];
+				String[] data;
 				while (s.hasNextLine()) {
 					data = s.nextLine().split(",");
 					Alarm alarm = new Alarm(data[0], Integer.parseInt(data[1]), Integer.parseInt(data[2]), data[3], Boolean.parseBoolean(data[4]), Boolean.parseBoolean(data[5]));
 					alarm.start();
 					alarmArrayList.add(alarm);
 
-					list.updateAlarmListModel(alarmArrayList);
+					updateAlarmListModel();
 				}
 			} catch (FileNotFoundException e) {
 				System.out.println("error:" + e);
@@ -111,26 +87,26 @@ public class AppManager implements Runnable {
 		}
 	}
 
-	private void saveFunc() {
+	public void saveFunc(Component parent) {
 		FileWriter writer = null;
 		JFileChooser fileChooser = new JFileChooser();
 		fileChooser.setDialogTitle("Select a file or make a new text file to save");
-		int userSelection = fileChooser.showSaveDialog(this);
+		int userSelection = fileChooser.showSaveDialog(parent);
 		BufferedWriter bWriter = null;
 
 		if (userSelection == JFileChooser.APPROVE_OPTION) {
 			try {
 				writer = new FileWriter(fileChooser.getSelectedFile() + ".txt");
 				bWriter = new BufferedWriter(writer);
-				String str = "";
+				String str;
 
-				for (int i = 0; i < alarmArrayList.size(); i++) {
-					String label = alarmArrayList.get(i).getLabel();
-					int hour = alarmArrayList.get(i).getHour();
-					int minute = alarmArrayList.get(i).getMinute();
-					String sound = alarmArrayList.get(i).getSound();
-					boolean repeat = alarmArrayList.get(i).isRepeat();
-					boolean set = alarmArrayList.get(i).isSet();
+				for (Alarm alarm : alarmArrayList) {
+					String label = alarm.getLabel();
+					int hour = alarm.getHour();
+					int minute = alarm.getMinute();
+					String sound = alarm.getSound();
+					boolean repeat = alarm.isRepeat();
+					boolean set = alarm.isSet();
 					str = label + "," + hour + "," + minute + "," + sound + "," + repeat + "," + set + "\r\n";
 
 					bWriter.append(str);
@@ -149,16 +125,76 @@ public class AppManager implements Runnable {
 		}
 	}
 
+	public void deleteAlarm(int clickedIndex) {
+		alarmArrayList.get(clickedIndex).interrupt();
+		alarmArrayList.remove(clickedIndex);
+		updateAlarmListModel();
+	}
 
 	@Override
 	public void run() {
 		while (true) {
 			try{
-				clock.clockThread();
-				Thread.sleep(100);
+				notifyObserver();
+				Thread.sleep(500);
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
+		}
+	}
+
+	public Alarm getEditingAlarm(int editIndex) {
+		return alarmArrayList.get(editIndex);
+	}
+
+	public void setEditIndex(int editIndex) {
+		this.editIndex = editIndex;
+	}
+
+	public int getEditIndex() {
+		return editIndex;
+	}
+
+	public void alarmInterrupt(Alarm alarm) {
+		alarm.interrupt();
+	}
+
+	public void setAlarm(int index, Alarm alarm) {
+		if (alarm.isSet()) alarm.start();
+		if (index == -1) {
+			alarmArrayList.add(alarm);
+		} else {
+			alarmArrayList.set(index, alarm);
+		}
+	}
+
+	public JList<String> getAlarmList() {
+		return alarmList;
+	}
+
+	public int getSelectedIndex() {
+		return alarmList.getSelectedIndex();
+	}
+
+	public DefaultListModel<String> getAlarmListModel() {
+		return alarmListModel;
+	}
+
+	@Override
+	public void addObserver(Observer o) {
+		if (!observers.contains(o)) observers.add(o);
+	}
+
+	@Override
+	public void removeObserver(Observer o) {
+		observers.remove(o);
+
+	}
+
+	@Override
+	public void notifyObserver() {
+		for (Observer o : observers) {
+			o.update();
 		}
 	}
 }

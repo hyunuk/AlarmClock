@@ -1,18 +1,36 @@
 package view;
 
 import model.Alarm;
+import viewModel.AppManager;
+
+import java.util.Objects;
 
 /**
  * Created by hyunuk71@gmail.com on 23/08/2018
  * Github : http://github.com/hyunuk71
  */
-public class EditPopup extends PopupPanel {
-	public EditPopup() {
+class EditPopup extends Popup {
+	private AppManager appManager;
+
+	EditPopup(AppManager appManager) {
+		this.appManager = appManager;
+
 		leftBtn.setText("Edit");
-		rightBtn.setText("Cancel");
+		leftBtn.addActionListener(e -> {
+			int editIndex = appManager.getEditIndex();
+			Alarm editingAlarm = appManager.getEditingAlarm(editIndex);
+			appManager.alarmInterrupt(editingAlarm);
+			appManager.setAlarm(editIndex, editAlarm());
+			appManager.updateAlarmListModel();
+			this.dispose();
+		});
+		cancelBtn.addActionListener(e -> {
+			this.dispose();
+		});
+
 	}
 
-	public void setEditPopup(Alarm editingAlarm) {
+	void initEditPopup(Alarm editingAlarm) {
 		String label = editingAlarm.getLabel();
 		int hour = editingAlarm.getHour();
 		int minute = editingAlarm.getMinute();
@@ -42,18 +60,16 @@ public class EditPopup extends PopupPanel {
 		} else {
 			off.setSelected(true);
 		}
-
 	}
 
-	public Alarm editAlarm() {
+	Alarm editAlarm() {
 		String label = labelText.getText();
-		int hour = Integer.parseInt(hoursCombo.getSelectedItem().toString());
-		int minute = Integer.parseInt(minutesCombo.getSelectedItem().toString());
+		int hour = Integer.parseInt(Objects.requireNonNull(hoursCombo.getSelectedItem()).toString());
+		int minute = Integer.parseInt(Objects.requireNonNull(minutesCombo.getSelectedItem()).toString());
 		String sound = soundsList.getSelectedValue();
 		boolean isRepeat = repeatChecker.isSelected();
-		boolean isSet = on.isSelected() ? true : false;
+		boolean isSet = on.isSelected();
 
-		Alarm editedAlarm = new Alarm(label, hour, minute, sound, isRepeat, isSet);
-		return editedAlarm;
+		return new Alarm(label, hour, minute, sound, isRepeat, isSet);
 	}
 }

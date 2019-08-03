@@ -13,4 +13,10 @@ public class ComponentAttacher {
 		caller.add(abc);
 		abc.setBounds(r);
 	}
+
+	public static void attach(Container caller, JComponent abc, Point p, Dimension d) {
+		caller.add(abc);
+		abc.setPreferredSize(d);
+		abc.setLocation(p);
+	}
 }
